@@ -9,10 +9,10 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.projet</groupId>
-	<artifactId>LocationVoiture</artifactId>
+	<artifactId>CNSS</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>LocationVoiture</name>
-	<description>LocationVoiture</description>
+	<name>CNSS</name>
+	<description>CNSS</description>
 	<url/>
 	<licenses>
 		<license/>
@@ -42,6 +42,23 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webflux</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>com.itextpdf</groupId>
+			<artifactId>itext7-core</artifactId>
+			<version>7.2.5</version>
+			<type>pom</type>
+		</dependency>
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-databind</artifactId>
+		</dependency>
+		<!-- Extraction texte PDF -->
+		<dependency>
+			<groupId>org.apache.pdfbox</groupId>
+			<artifactId>pdfbox</artifactId>
+			<version>3.0.1</version>
 		</dependency>
 
 		<dependency>

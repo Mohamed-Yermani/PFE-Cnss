@@ -1,111 +1,164 @@
 package com.projet.cnss.services;
 
-import com.projet.cnss.dto.DossierDto;
+import com.projet.cnss.dto.AiVerificationResult;
+import com.projet.cnss.dto.DossierUploadResponse;
 import com.projet.cnss.entity.Dossier;
 import com.projet.cnss.entity.User;
+
+import com.projet.cnss.exception.AiVerificationException;
 import com.projet.cnss.repository.DossierRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
-@Slf4j
 public class DossierService {
 
-    private final MinioService minioService;
-    private final DossierRepository dossierRepository;
+    @Autowired private DossierRepository      dossierRepository;
+    @Autowired private MinioService           minioService;
+    @Autowired private AiVerificationService  aiVerificationService;
+    @Autowired private PdfExtractorService    pdfExtractorService;
 
-    public DossierDto uploadDossier(String cin, MultipartFile file, User user) throws Exception {
-        String objectName = minioService.uploadDocument(user.getEmail(), file);
+    // ── Upload avec vérification IA ───────────────────────────
+    public DossierUploadResponse uploadDossier(MultipartFile file,
+                                               String userEmail,
+                                               User user) throws Exception {
+        // Étape 1 : Extraction texte PDF
+        String contenuPdf = pdfExtractorService.extraireTexte(file);
 
-        LocalDateTime now = LocalDateTime.now();
+        // Étape 2 : Vérification IA
+        AiVerificationResult verification = aiVerificationService
+                .verifierContenuPdf(contenuPdf);
 
+        // Étape 3 : Refus si invalide
+        if (!verification.isValide()) {
+            throw new AiVerificationException(
+                    "Le formulaire PDF est incomplet ou invalide", verification);
+        }
+
+        // Étape 4 : Upload MinIO
+        String objectName = minioService.uploadDocument(userEmail, file);
+
+        // Étape 5 : Sauvegarde BDD
         Dossier dossier = new Dossier();
-        dossier.setCin(cin);
         dossier.setFileName(file.getOriginalFilename());
         dossier.setAlfrescoNodeId(objectName);
         dossier.setStatut("EN_ATTENTE");
         dossier.setUser(user);
-        dossier.setDateUpload(now);
+        Dossier saved = dossierRepository.save(dossier);
 
-        return mapToDto(dossierRepository.save(dossier));
+        return buildResponse(saved, verification);
     }
 
-    public List<DossierDto> getUserDossiers(User user) {
-        return dossierRepository.findByUser(user)
-                .stream().map(this::mapToDto).collect(Collectors.toList());
-    }
-
-    public DossierDto getDossierById(Long id) {
-        return mapToDto(dossierRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Dossier introuvable")));
-    }
-
-    public List<DossierDto> getDossiersEnAttente() {
-        return dossierRepository.findByStatut("EN_ATTENTE")
-                .stream().map(this::mapToDto).collect(Collectors.toList());
-    }
-
-    public DossierDto validerDossier(Long id, String agentEmail) {
+    // ── Changer statut ────────────────────────────────────────
+    public Dossier changerStatut(Long id, String statut,
+                                 String motif, String agentEmail) {
         Dossier dossier = dossierRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Dossier introuvable"));
-        dossier.setStatut("VALIDE");
+                .orElseThrow(() -> new RuntimeException("Dossier non trouve"));
+
+        dossier.setStatut(statut);
         dossier.setAgentEmail(agentEmail);
         dossier.setDateTraitement(LocalDateTime.now());
-        return mapToDto(dossierRepository.save(dossier));
+        if (motif != null) dossier.setMotifRefus(motif);
+
+        return dossierRepository.save(dossier);
     }
 
-    public DossierDto refuserDossier(Long id, String motif, String agentEmail) {
+    // ── Télécharger depuis MinIO ──────────────────────────────
+    public byte[] downloadDossier(Long id) throws Exception {
         Dossier dossier = dossierRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Dossier introuvable"));
-        dossier.setStatut("REFUSE");
-        dossier.setMotifRefus(motif);
-        dossier.setAgentEmail(agentEmail);
-        dossier.setDateTraitement(LocalDateTime.now());
-        return mapToDto(dossierRepository.save(dossier));
-    }
-
-    public byte[] downloadDossier(Long id, User user) throws Exception {
-        Dossier dossier = dossierRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Dossier introuvable"));
+                .orElseThrow(() -> new RuntimeException("Dossier non trouve"));
         return minioService.downloadDocument(dossier.getAlfrescoNodeId());
     }
 
-    public void deleteDossier(Long id, User user) throws Exception {
+    // ── Supprimer ─────────────────────────────────────────────
+    public void deleteDossier(Long id, String userEmail) throws Exception {
         Dossier dossier = dossierRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Dossier introuvable"));
+                .orElseThrow(() -> new RuntimeException("Dossier non trouve"));
         minioService.deleteDocument(dossier.getAlfrescoNodeId());
         dossierRepository.delete(dossier);
     }
 
-    public Map<String, Long> getStatistics() {
-        return Map.of(
-                "total", dossierRepository.count(),
-                "en_attente", dossierRepository.countByStatut("EN_ATTENTE"),
-                "valides", dossierRepository.countByStatut("VALIDE"),
-                "refuses", dossierRepository.countByStatut("REFUSE")
-        );
+    // ── Requêtes ──────────────────────────────────────────────
+    public List<Dossier> getAllDossiers() {
+        return dossierRepository.findAll();
     }
 
-    private DossierDto mapToDto(Dossier dossier) {
-        return DossierDto.builder()
+    public List<Dossier> getDossiersByUser(User user) {
+        return dossierRepository.findByUser(user);
+    }
+
+    public List<Dossier> getDossiersByStatut(String statut) {
+        return dossierRepository.findByStatut(statut);
+    }
+
+    // ── Statistiques ──────────────────────────────────────────
+    public Map<String, Object> getStatistics() {
+        Map<String, Object> stats = new LinkedHashMap<>();
+        stats.put("total",            dossierRepository.count());
+        stats.put("enAttente",        dossierRepository.countByStatut("EN_ATTENTE"));
+        stats.put("validationLocale", dossierRepository.countByStatut("VALIDATION_LOCALE"));
+        stats.put("valides",          dossierRepository.countByStatut("VALIDE"));
+        stats.put("refuses",          dossierRepository.countByStatut("REFUSE"));
+        return stats;
+    }
+
+
+
+    // ── Build response ────────────────────────────────────────
+    private DossierUploadResponse buildResponse(Dossier dossier,
+                                                AiVerificationResult v) {
+        Map<String, DossierUploadResponse.SectionInfo> detailsMap = new LinkedHashMap<>();
+
+        if (v.getDetailIdentite() != null)
+            detailsMap.put("identiteAssure",
+                    toSectionInfo(v.getDetailIdentite()));
+        if (v.getDetailEmployeur() != null)
+            detailsMap.put("informationsEmployeur",
+                    toSectionInfo(v.getDetailEmployeur()));
+        if (v.getDetailTypeDossier() != null)
+            detailsMap.put("typeDossier",
+                    toSectionInfo(v.getDetailTypeDossier()));
+        if (v.getDetailPeriode() != null)
+            detailsMap.put("periode",
+                    toSectionInfo(v.getDetailPeriode()));
+        if (v.getDetailSignature() != null)
+            detailsMap.put("signature",
+                    toSectionInfo(v.getDetailSignature()));
+        if (v.getDetailCoherence() != null)
+            detailsMap.put("coherenceGlobale",
+                    toSectionInfo(v.getDetailCoherence()));
+
+        DossierUploadResponse.AiVerificationDetails aiDetails =
+                DossierUploadResponse.AiVerificationDetails.builder()
+                        .valide(v.isValide())
+                        .score(v.getScore())
+                        .scoreBadge(aiVerificationService.getBadge(v.getScore()))
+                        .resume(v.getResume())
+                        .champsManquants(v.getChampsManquants())
+                        .champsInvalides(v.getChampsInvalides())
+                        .details(detailsMap)
+                        .build();
+
+        return DossierUploadResponse.builder()
                 .id(dossier.getId())
-                .cin(dossier.getCin())
                 .fileName(dossier.getFileName())
-                .alfrescoNodeId(dossier.getAlfrescoNodeId())
                 .statut(dossier.getStatut())
-                .motifRefus(dossier.getMotifRefus())
-                .agentEmail(dossier.getAgentEmail())
-                .userId(dossier.getUser().getId())
                 .dateUpload(dossier.getDateUpload())
-                .dateTraitement(dossier.getDateTraitement())
+                .aiVerification(aiDetails)
+                .build();
+    }
+
+    private DossierUploadResponse.SectionInfo toSectionInfo(
+            AiVerificationResult.SectionDetail d) {
+        return DossierUploadResponse.SectionInfo.builder()
+                .statut(d.getStatut())
+                .commentaire(d.getCommentaire())
                 .build();
     }
 }
