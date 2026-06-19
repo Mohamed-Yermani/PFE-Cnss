@@ -22,6 +22,8 @@ public class Dossier {
 
     private String motifRefus;
     private String agentEmail;
+    // Dans Dossier.java
+    private String typeAvantage;  // Ex: "Retraite", "Invalidite", "Accident de travail"
 
     @ManyToOne
     @JoinColumn(name = "user_id")

@@ -87,4 +87,17 @@ public class MinioService {
                         .build()
         );
     }
+
+    public void uploadRaw(String objectName, MultipartFile file) throws Exception {
+        minioClient.putObject(
+                PutObjectArgs.builder()
+                        .bucket(bucketName)
+                        .object(objectName)
+                        .stream(file.getInputStream(), file.getSize(), -1)
+                        .contentType(file.getContentType())
+                        .build()
+        );
+        log.info("Pièce uploadée dans MinIO : {}", objectName);
+    }
+
 }
