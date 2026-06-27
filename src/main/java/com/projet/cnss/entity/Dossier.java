@@ -22,8 +22,11 @@ public class Dossier {
 
     private String motifRefus;
     private String agentEmail;
-    // Dans Dossier.java
-    private String typeAvantage;  // Ex: "Retraite", "Invalidite", "Accident de travail"
+    private String typeAvantage;
+
+    // ✅ Nouveau champ : score IA au moment de la vérification du dossier
+    @Column(name = "ai_score")
+    private Integer aiScore;
 
     @ManyToOne
     @JoinColumn(name = "user_id")

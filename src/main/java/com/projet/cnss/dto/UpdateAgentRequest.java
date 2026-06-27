@@ -27,6 +27,16 @@ public class UpdateAgentRequest {
     @NotBlank(message = "Le CIN est obligatoire")
     private String cin;
 
-    @Pattern(regexp = "^\\+?[0-9]{8,15}$", message = "Format de téléphone invalide")
+    // ✅ @Pattern sans @NotBlank → null accepté, validé seulement si non-null
+    @Pattern(
+            regexp = "^\\+?[0-9]{8,15}$",
+            message = "Format de téléphone invalide"
+    )
     private String telephone;
+
+    // ✅ Pas de @Pattern sur password en modification → chaîne vide autorisée
+    private String password;
+
+    // ✅ Rôle optionnel
+    private String role;
 }

@@ -1,10 +1,12 @@
 package com.projet.cnss.services.user;
 
+import com.projet.cnss.dto.UpdateProfileRequest;
 import com.projet.cnss.entity.Dossier;
 import com.projet.cnss.entity.User;
 import com.projet.cnss.dto.UserDto;
 import com.projet.cnss.repository.UserRepository;
 
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -19,28 +21,28 @@ import java.util.stream.Collectors;
 public class UserService {
     private final UserRepository userRepository;
 
-
     // Récupération basée sur l'email (par ex. obtenu via Authentication.getName())
     public UserDto getCurrentUserByEmail(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
 
-        return UserDto.builder()
-                .id(user.getId())
-                .nom(user.getNom())
-                .prenom(user.getPrenom())
-                .email(user.getEmail())
-                .numeroAssure(user.getNumeroAssure())
-                .cin(user.getCin())
-                .telephone(user.getTelephone())
-                .enabled(user.isEnabled())
-
-                .roles(user.getRoles() == null ? null :
-                        user.getRoles().stream()
-                                .map(role -> role.getName().name())
-                                .collect(Collectors.toSet()))
-                .build();
+        return mapToDtoComplet(user);
     }
+
+    // ✅ Mise à jour du profil de l'utilisateur connecté
+    @Transactional
+    public UserDto updateProfile(String email, UpdateProfileRequest request) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
+
+        user.setPrenom(request.getPrenom());
+        user.setNom(request.getNom());
+        user.setTelephone(request.getTelephone());
+
+        User saved = userRepository.save(user);
+        return mapToDtoComplet(saved);
+    }
+
     public UserDto getUserById(Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Utilisateur avec id " + id + " introuvable"));
@@ -54,7 +56,25 @@ public class UserService {
                 .collect(Collectors.toList());
     }
 
-    // 🔹 Méthode utilitaire pour mapper User → UserDto
+    // 🔹 Mapper User → UserDto (champs complets : cin + numeroAssure inclus, utilisé pour /me)
+    private UserDto mapToDtoComplet(User user) {
+        return UserDto.builder()
+                .id(user.getId())
+                .nom(user.getNom())
+                .prenom(user.getPrenom())
+                .email(user.getEmail())
+                .numeroAssure(user.getNumeroAssure())
+                .cin(user.getCin())
+                .telephone(user.getTelephone())
+                .enabled(user.isEnabled())
+                .roles(user.getRoles() == null ? null :
+                        user.getRoles().stream()
+                                .map(role -> role.getName().name())
+                                .collect(Collectors.toSet()))
+                .build();
+    }
+
+    // 🔹 Méthode utilitaire pour mapper User → UserDto (utilisée pour getUserById / getAllUsers)
     private UserDto mapToDto(User user) {
         return UserDto.builder()
                 .id(user.getId())
@@ -63,13 +83,11 @@ public class UserService {
                 .email(user.getEmail())
                 .telephone(user.getTelephone())
                 .enabled(user.isEnabled())
-
                 .roles(user.getRoles() == null ? null :
                         user.getRoles().stream()
                                 .map(role -> role.getName().name())
                                 .collect(Collectors.toSet()))
                 .build();
     }
-
 
 }

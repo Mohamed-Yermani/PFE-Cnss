@@ -129,4 +129,28 @@ public class NotificationController {
                 )
         ));
     }
+
+    // ── Test manuel d'envoi de notification (Admin) ───────────
+    @PostMapping("/test/{email}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, String>> sendTestNotification(
+            @PathVariable String email,
+            @RequestParam String message) {
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Utilisateur introuvable : " + email));
+
+        notifService.creerEtEnvoyer(
+                user,
+                "🔔 Notification de test",
+                message,
+                "INFO",
+                null,
+                null
+        );
+
+        return ResponseEntity.ok(Map.of(
+                "message", "Notification de test envoyée avec succès à " + email
+        ));
+    }
 }

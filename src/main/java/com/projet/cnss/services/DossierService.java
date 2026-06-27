@@ -81,6 +81,9 @@ public class DossierService {
         // ✅ Extraire et sauvegarder le typeAvantage depuis le PDF
         dossier.setTypeAvantage(extraireTypeAvantage(contenuPdf));
 
+        // ✅ Persister le score IA pour qu'il compte dans les statistiques
+        dossier.setAiScore(verification.getScore());
+
         Dossier saved = dossierRepository.save(dossier);
 
         // ✅ Notifier les agents
@@ -95,7 +98,6 @@ public class DossierService {
                 .statut("OK")
                 .commentaire("Validé")
                 .build();
-        // ❌ NE RIEN METTRE APRÈS LE RETURN
     }
 
     // ── Extraire le type d'avantage depuis le texte PDF ───────────
@@ -157,10 +159,6 @@ public class DossierService {
         return "Avantage CNSS";
     }
 
-
-
-
-
     // ── Télécharger depuis MinIO ──────────────────────────────
     public byte[] downloadDossier(Long id) throws Exception {
         Dossier dossier = dossierRepository.findById(id)
@@ -197,10 +195,18 @@ public class DossierService {
         stats.put("validationLocale", dossierRepository.countByStatut("VALIDATION_LOCALE"));
         stats.put("valides",          dossierRepository.countByStatut("VALIDE"));
         stats.put("refuses",          dossierRepository.countByStatut("REFUSE"));
+
+        // ✅ Score IA moyen — uniquement sur les dossiers qui ont un score (les anciens sont ignorés, ai_score = null)
+        double avgScore = dossierRepository.findAll().stream()
+                .filter(d -> d.getAiScore() != null)
+                .mapToInt(Dossier::getAiScore)
+                .average()
+                .orElse(0.0);
+
+        stats.put("avgAiScore", Math.round(avgScore));
+
         return stats;
     }
-
-
 
     // ── Build response ────────────────────────────────────────
     private DossierUploadResponse buildResponse(Dossier dossier,

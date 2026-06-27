@@ -6,6 +6,8 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.*;
 
+import java.util.Set;
+
 @Data
 @Builder
 @AllArgsConstructor
@@ -38,4 +40,5 @@ public class CreateAgentRequest {
 
     @Pattern(regexp = "^\\+?[0-9]{8,15}$", message = "Format de téléphone invalide")
     private String telephone;
+    private String role;
 }

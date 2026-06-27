@@ -12,6 +12,7 @@ public class PdfExtractorService {
     public String extraireTexte(MultipartFile file) throws Exception {
         try (PDDocument document = Loader.loadPDF(file.getBytes())) {
             PDFTextStripper stripper = new PDFTextStripper();
+            stripper.setSortByPosition(true); // ordre visuel: gauche->droite, haut->bas
             String text = stripper.getText(document);
 
             if (text == null || text.trim().isEmpty()) {

@@ -33,7 +33,7 @@ public class AiVerificationService {
     }
 
     public AiVerificationResult verifierContenuPdf(String contenuPdf) {
-
+        log.info("TEXTE EXTRAIT COMPLET ===>\n{}", contenuPdf);
         log.info("=== DEBUT VERIFICATION IA ===");
         log.info("Contenu PDF ({} caracteres)", contenuPdf.length());
         log.info("API URL : {}", apiUrl);

@@ -1,7 +1,9 @@
 package com.projet.cnss.controller;
 
+import com.projet.cnss.dto.UpdateProfileRequest;
 import com.projet.cnss.services.user.UserService;
 import com.projet.cnss.dto.UserDto;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -19,6 +21,15 @@ public class UserController {
     public ResponseEntity<UserDto> getCurrentUser(Authentication authentication) {
         String email = authentication.getName();
         return ResponseEntity.ok(userService.getCurrentUserByEmail(email));
+    }
+
+    // ✅ Mise à jour du profil de l'utilisateur connecté
+    @PutMapping("/me")
+    public ResponseEntity<UserDto> updateProfile(
+            @RequestBody @Valid UpdateProfileRequest request,
+            Authentication authentication) {
+        String email = authentication.getName();
+        return ResponseEntity.ok(userService.updateProfile(email, request));
     }
 
     @GetMapping("/{id}")

@@ -4,6 +4,7 @@ package com.projet.cnss.exception;
 
 import com.projet.cnss.dto.AiVerificationResult;
 import com.projet.cnss.dto.DossierUploadResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -17,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
 
     // ── Refus IA ──────────────────────────────────────────────
@@ -79,10 +81,10 @@ public class GlobalExceptionHandler {
 
     // ── RuntimeException générique ────────────────────────────
     @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<Map<String, Object>> handleRuntime(
-            RuntimeException ex) {
+    public ResponseEntity<Map<String, Object>> handleRuntime(RuntimeException ex) {
+        log.error("Erreur runtime: ", ex); // 👈 log la stack trace complète côté serveur
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(errorMap(400, "ERREUR", ex.getMessage()));
+                .body(errorMap(400, "ERREUR", ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName()));
     }
 
     // ── Erreur serveur ────────────────────────────────────────

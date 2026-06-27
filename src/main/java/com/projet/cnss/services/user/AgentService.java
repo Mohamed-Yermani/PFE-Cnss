@@ -37,38 +37,43 @@ public class AgentService {
      */
     @Transactional
     public UserDto createAgent(CreateAgentRequest request, String adminEmail, String agentType) {
+
+        // Vérifier si l'email existe déjà
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new EmailAlreadyExistsException("L'email " + request.getEmail() + " est déjà utilisé");
+            throw new RuntimeException("Email déjà utilisé : " + request.getEmail());
         }
 
-        // Choisir le rôle selon le type d'agent
-        ERole eRole = "DIRECTION".equalsIgnoreCase(agentType)
-                ? ERole.ROLE_AGENT_DIRECTION
-                : ERole.ROLE_AGENT_BUREAU;
+        // ✅ Mapping agentType → ERole (couvre tous les cas)
+        ERole eRole = switch (agentType.toUpperCase().trim()) {
+            case "CNSS"      -> ERole.ROLE_AGENT_CNSS;
+            case "BUREAU"    -> ERole.ROLE_AGENT_BUREAU;
+            case "DIRECTION" -> ERole.ROLE_AGENT_DIRECTION;
+            case "ADMIN"     -> ERole.ROLE_ADMIN;
+            default          -> ERole.ROLE_AGENT_CNSS; // fallback sécurisé
+        };
 
-        Role agentRole = roleRepository.findByName(eRole)
-                .orElseGet(() -> roleRepository.save(new Role(eRole)));
+        // Récupérer le rôle depuis la base
+        Role role = roleRepository.findByName(eRole)
+                .orElseThrow(() -> new RuntimeException(
+                        "Rôle introuvable en base : " + eRole.name() +
+                                " — vérifie que la table 'roles' est bien initialisée"
+                ));
 
+        // Créer l'utilisateur
         User agent = User.builder()
                 .nom(request.getNom())
                 .prenom(request.getPrenom())
                 .email(request.getEmail())
-                .password(passwordEncoder.encode(request.getPassword()))
                 .cin(request.getCin())
                 .numeroAssure(request.getNumeroAssure())
                 .telephone(request.getTelephone())
-                .roles(Set.of(agentRole))
+                .password(passwordEncoder.encode(request.getPassword()))
+                .roles(new java.util.HashSet<>(Set.of(role))) // ✅ mutable
                 .enabled(true)
                 .build();
 
-        userRepository.save(agent);
-
-        auditLogService.log(
-                "CREATE_AGENT",
-                "Admin " + adminEmail + " a créé l'agent " + agent.getEmail() + " de type " + agentType
-        );
-
-        return mapToDto(agent);
+        User saved = userRepository.save(agent);
+        return mapToDto(saved);
     }
 
     /**
@@ -144,34 +149,44 @@ public class AgentService {
      * Mettre à jour les informations d'un agent
      */
     @Transactional
-    public UserDto updateAgent(Long agentId, UpdateAgentRequest request, String adminEmail) {
-        User agent = userRepository.findById(agentId)
-                .orElseThrow(() -> new RuntimeException("Agent avec l'ID " + agentId + " introuvable"));
+    public UserDto updateAgent(Long id, UpdateAgentRequest request, String adminEmail) {
 
-        if (!isAgent(agent)) {
-            throw new RuntimeException("L'utilisateur avec l'ID " + agentId + " n'est pas un agent");
-        }
+        User agent = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Agent introuvable : " + id));
 
-        if (!agent.getEmail().equals(request.getEmail()) &&
-                userRepository.existsByEmail(request.getEmail())) {
-            throw new EmailAlreadyExistsException("L'email " + request.getEmail() + " est déjà utilisé");
-        }
-
-        agent.setEmail(request.getEmail());
-        agent.setNumeroAssure(request.getNumeroAssure());
         agent.setNom(request.getNom());
         agent.setPrenom(request.getPrenom());
+        agent.setEmail(request.getEmail());
         agent.setCin(request.getCin());
+        agent.setNumeroAssure(request.getNumeroAssure());
         agent.setTelephone(request.getTelephone());
 
-        userRepository.save(agent);
+        // ✅ Mettre à jour le password SEULEMENT s'il est fourni et non vide
+        if (request.getPassword() != null && !request.getPassword().isBlank()) {
+            agent.setPassword(passwordEncoder.encode(request.getPassword()));
+        }
 
-        auditLogService.log(
-                "UPDATE_AGENT",
-                "Admin " + adminEmail + " a modifié l'agent " + agent.getEmail()
-        );
+        // ✅ Mettre à jour le rôle si fourni
+        // Dans updateAgent() :
+        if (request.getRole() != null && !request.getRole().isBlank()) {
+            ERole eRole = switch (request.getRole().toUpperCase().trim()) {
+                case "ROLE_AGENT_CNSS"      -> ERole.ROLE_AGENT_CNSS;
+                case "ROLE_AGENT_BUREAU"    -> ERole.ROLE_AGENT_BUREAU;
+                case "ROLE_AGENT_DIRECTION" -> ERole.ROLE_AGENT_DIRECTION;
+                case "ROLE_ADMIN"           -> ERole.ROLE_ADMIN;
+                default                     -> ERole.ROLE_AGENT_CNSS;
+            };
 
-        return mapToDto(agent);
+            Role role = roleRepository.findByName(eRole)
+                    .orElseThrow(() -> new RuntimeException("Rôle introuvable : " + eRole));
+
+            // ✅ Mieux : vider et repeupler la collection existante plutôt que la remplacer
+            agent.getRoles().clear();
+            agent.getRoles().add(role);
+        }
+
+        User saved = userRepository.save(agent);
+        return mapToDto(saved);
     }
 
     /**

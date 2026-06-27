@@ -30,12 +30,24 @@ public class AgentController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UserDto> createAgent(
             @RequestBody @Valid CreateAgentRequest request,
-            @RequestParam(defaultValue = "BUREAU") String agentType,
+            @RequestParam(required = false) String agentType,
             Authentication authentication) {
 
         String adminEmail = authentication.getName();
-        UserDto createdAgent = agentService.createAgent(request, adminEmail, agentType);
 
+        // Déduire agentType depuis le role si non fourni en query param
+        if (agentType == null || agentType.isBlank()) {
+            String role = request.getRole(); // ← on lit le role depuis le body
+            agentType = switch (role != null ? role : "") {
+                case "ROLE_AGENT_CNSS"      -> "CNSS";
+                case "ROLE_AGENT_BUREAU"    -> "BUREAU";
+                case "ROLE_AGENT_DIRECTION" -> "DIRECTION";
+                case "ROLE_ADMIN"           -> "ADMIN";
+                default                     -> "CNSS";
+            };
+        }
+
+        UserDto createdAgent = agentService.createAgent(request, adminEmail, agentType);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdAgent);
     }
 
