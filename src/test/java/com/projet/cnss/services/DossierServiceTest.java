@@ -95,7 +95,7 @@ class DossierServiceTest {
             d.setId(10L);
             return d;
         });
-        when(aiVerificationService.getBadge(100)).thenReturn("EXCELLENT");
+        when(aiVerificationService.getBadge(95)).thenReturn("EXCELLENT");
 
         DossierUploadResponse response = dossierService.uploadDossier(
                 file, "jean@test.com", user, true, 95);
