@@ -118,4 +118,6 @@ public class GlobalExceptionHandler {
         if (score >= 50) return "MOYEN";
         return "FAIBLE";
     }
+
+
 }
