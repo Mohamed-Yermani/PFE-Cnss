@@ -35,7 +35,10 @@
 			**/config/MinioConfig.java,
 			**/config/WebClientConfig.java,
 			**/config/WebSocketConfig.java,
-			**/config/SecurityConfig.java
+			**/config/SecurityConfig.java,
+			**/exception/EmailAlreadyExistsException.java,
+			**/exception/ErrorDetails.java,
+			**/exception/AiVerificationException.java
 		</sonar.coverage.exclusions>
 	</properties>
 	<dependencies>
