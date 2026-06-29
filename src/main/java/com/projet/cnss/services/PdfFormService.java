@@ -185,7 +185,9 @@ public class PdfFormService {
 
         for (int i = 0; i < types.length; i++) {
             float cx = (i % 2 == 0) ? 22 * mm : 105 * mm;
-            float cy = y - (i / 2) * 9 * mm;
+
+            int row = i / 2;
+            float cy = y - row * 9 * mm;
             // Case à cocher
             canvas.setStrokeColor(LIGHTBLUE)
                     .setFillColor(ColorConstants.WHITE)
@@ -199,7 +201,8 @@ public class PdfFormService {
                     .showText(types[i])
                     .endText();
         }
-        y -= (types.length / 2) * 9 * mm + 6 * mm;
+        int rows = types.length / 2;
+        y -= rows * 9 * mm + 6 * mm;
 
         drawFieldEmpty(canvas, fontNormal, LIGHTGRAY, GRAY, DARKGRAY,
                 15 * mm, y, 80 * mm, "Reference du dossier");
