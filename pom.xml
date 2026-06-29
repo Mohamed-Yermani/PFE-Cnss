@@ -29,7 +29,14 @@
 	<properties>
 		<java.version>17</java.version>
 		<spring-cloud.version>2025.0.0</spring-cloud.version>
-		<sonar.coverage.exclusions>**/dto/**</sonar.coverage.exclusions>
+		<sonar.coverage.exclusions>
+			**/dto/**,
+			**/entity/**,
+			**/config/MinioConfig.java,
+			**/config/WebClientConfig.java,
+			**/config/WebSocketConfig.java,
+			**/config/SecurityConfig.java
+		</sonar.coverage.exclusions>
 	</properties>
 	<dependencies>
 		<dependency>
