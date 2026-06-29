@@ -79,7 +79,7 @@ public class NotificationService {
     // ════════════════════════════════════════════════════════
     // NOTIFICATIONS DOSSIER
     // ════════════════════════════════════════════════════════
-
+    @Transactional
     public void notifierNouveauDossier(Dossier dossier) {
         String msg = String.format(
                 "L'assuré %s %s a soumis un nouveau dossier #%d (%s)",
@@ -93,7 +93,7 @@ public class NotificationService {
                         "📁 Nouveau dossier déposé", msg, "INFO",
                         dossier.getId(), dossier.getTypeAvantage()));
     }
-
+    @Transactional
     public void notifierStatutDossier(Dossier dossier, String statut) {
         String typeAvantage = dossier.getTypeAvantage() != null
                 ? dossier.getTypeAvantage() : "votre avantage";
@@ -142,7 +142,7 @@ public class NotificationService {
                 titre, message, type,
                 dossier.getId(), typeAvantage);
     }
-
+@Transactional
     public void notifierValidationGlobale(Dossier dossier, String statut) {
         String typeAvantage = dossier.getTypeAvantage() != null
                 ? dossier.getTypeAvantage() : "Avantage";
@@ -167,7 +167,7 @@ public class NotificationService {
     // ════════════════════════════════════════════════════════
     // NOTIFICATIONS PIÈCES
     // ════════════════════════════════════════════════════════
-
+@Transactional
     public void notifierNouvellepiece(Dossier dossier, TypePiece typePiece) {
         String msg = String.format(
                 "L'assuré %s %s a déposé : %s (Dossier #%d)",
@@ -181,7 +181,7 @@ public class NotificationService {
                         "📎 Nouvelle pièce déposée", msg, "INFO",
                         dossier.getId(), null));
     }
-
+    @Transactional
     public void notifierValidationPiece(Dossier dossier,
                                         TypePiece typePiece,
                                         boolean valide,

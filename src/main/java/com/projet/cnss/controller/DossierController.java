@@ -24,7 +24,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/dossiers")
-@CrossOrigin(origins = "*")
 public class DossierController {
 
     @Autowired
