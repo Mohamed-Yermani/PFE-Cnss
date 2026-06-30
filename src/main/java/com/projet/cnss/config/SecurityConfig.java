@@ -35,9 +35,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .cors(cors -> cors.configurationSource(corsConfigurationSource())) // ✅ AJOUTER ICI
-                // CSRF is intentionally disabled because the application is stateless
-                // and uses JWT Bearer authentication instead of HTTP sessions.
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
@@ -96,9 +94,8 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
 
         // Origines explicites au lieu de "*"
-        configuration.setAllowedOrigins(Arrays.asList(
-                "http://localhost:4200",
-                "http://192.168.33.10:4200"  // ton environnement Jenkins/VM
+        configuration.setAllowedOrigins(List.of(
+                "http://localhost:4200"
         ));
         configuration.setAllowedMethods(Arrays.asList(
                 "GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"
