@@ -7,6 +7,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.dao.DataIntegrityViolationException;
 
 @Component
 @RequiredArgsConstructor
@@ -24,12 +26,17 @@ public class DataInitializer implements CommandLineRunner {
         createRoleIfNotExists(ERole.ROLE_AGENT_DIRECTION);
     }
 
-    private void createRoleIfNotExists(ERole eRole) {
-        if (roleRepository.findByName(eRole).isEmpty()) {
+    @Transactional
+    public void createRoleIfNotExists(ERole eRole) {
+        if (roleRepository.findByName(eRole).isPresent()) {
+            log.info("Rôle déjà existant : {}", eRole);
+            return;
+        }
+        try {
             roleRepository.save(new Role(eRole));
             log.info("Rôle créé : {}", eRole);
-        } else {
-            log.info("Rôle déjà existant : {}", eRole);
+        } catch (DataIntegrityViolationException e) {
+            log.info("Rôle {} déjà créé par un autre pod, on ignore", eRole);
         }
     }
 }

@@ -15,6 +15,9 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.dao.DataIntegrityViolationException;
+
+
 
 import java.time.Duration;
 import java.time.Instant;
@@ -33,16 +36,14 @@ public class AuthService {
     private final EmailService emailService;
     private final AuditLogService auditLogService;
 
-    /**
-     * Création automatique du compte ADMIN si inexistant
-     */
+
     @PostConstruct
+    @Transactional
     public void createAdminAccount() {
 
         String adminEmail = "admin@carrent.com";
 
-        Role adminRole = roleRepository.findByName(ERole.ROLE_ADMIN)
-                .orElseGet(() -> roleRepository.save(new Role(ERole.ROLE_ADMIN)));
+        Role adminRole = getOrCreateRole(ERole.ROLE_ADMIN);
 
         User admin = userRepository.findByEmail(adminEmail).orElse(null);
 
@@ -57,11 +58,33 @@ public class AuthService {
         admin.setPassword(passwordEncoder.encode("admin"));
         admin.setEnabled(true);
 
-        userRepository.save(admin);
-
-        System.out.println("✅ Admin créé / mis à jour");
+        try {
+            userRepository.save(admin);
+            System.out.println("✅ Admin créé / mis à jour");
+        } catch (DataIntegrityViolationException e) {
+            // Un autre pod a créé le même utilisateur admin entre-temps : rien à faire
+            System.out.println("ℹ️ Admin déjà créé par un autre pod, on ignore");
+        }
     }
 
+    /**
+     * Récupère un rôle existant, ou le crée. Tolère les créations concurrentes
+     * par plusieurs pods démarrant en même temps (race condition sur la contrainte
+     * unique du nom de rôle).
+     */
+    private Role getOrCreateRole(ERole roleName) {
+        return roleRepository.findByName(roleName)
+                .orElseGet(() -> {
+                    try {
+                        return roleRepository.save(new Role(roleName));
+                    } catch (DataIntegrityViolationException e) {
+                        // Un autre pod l'a créé entre le findByName et le save
+                        return roleRepository.findByName(roleName)
+                                .orElseThrow(() -> new IllegalStateException(
+                                        "Impossible de créer ou récupérer le rôle " + roleName, e));
+                    }
+                });
+    }
     /**
      * Inscription d’un utilisateur (CLIENT ou AGENCE)
      */
@@ -72,8 +95,7 @@ public class AuthService {
                     throw new EmailAlreadyExistsException("L'email " + request.getEmail() + " est déjà utilisé");
                 });
 
-        Role role = roleRepository.findByName(request.getRole())
-                .orElseGet(() -> roleRepository.save(new Role(request.getRole())));
+        Role role = getOrCreateRole(request.getRole());  // au lieu de findByName().orElseGet(save())
 
         User user = User.builder()
                 .nom(request.getNom())
