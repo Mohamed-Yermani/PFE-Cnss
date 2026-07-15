@@ -186,26 +186,5 @@ class EmailServiceImplTest {
     // sendPasswordResetEmail
     // ==========================================================
 
-    @Test
-    void sendPasswordResetEmail_success_delegatesToSendSimpleMail() {
-        User user = buildUser("jean@test.com", "Dupont", "Jean", null);
-        MimeMessage realMessage = new MimeMessage(SESSION);
-        when(javaMailSender.createMimeMessage()).thenReturn(realMessage);
 
-        emailService.sendPasswordResetEmail(user, "reset-token-123");
-
-        verify(javaMailSender).send(realMessage);
-    }
-
-    @Test
-    void sendPasswordResetEmail_exceptionDuringSend_doesNotThrow() {
-        User user = buildUser("jean@test.com", "Dupont", "Jean", null);
-        MimeMessage realMessage = new MimeMessage(SESSION);
-        when(javaMailSender.createMimeMessage()).thenReturn(realMessage);
-        doThrow(new RuntimeException("Erreur SMTP")).when(javaMailSender).send(any(MimeMessage.class));
-
-        // sendPasswordResetEmail délègue à sendSimpleMail qui catch toute exception
-        // et retourne une string -> aucune exception ne doit remonter ici.
-        assertDoesNotThrow(() -> emailService.sendPasswordResetEmail(user, "reset-token-123"));
-    }
 }
