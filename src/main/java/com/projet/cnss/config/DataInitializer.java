@@ -18,6 +18,7 @@ public class DataInitializer implements CommandLineRunner {
     private final RoleRepository roleRepository;
 
     @Override
+    @Transactional
     public void run(String... args) {
         createRoleIfNotExists(ERole.ROLE_ADMIN);
         createRoleIfNotExists(ERole.ROLE_ASSURE);
